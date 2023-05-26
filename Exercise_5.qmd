@@ -1,0 +1,70 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+## Tasks 1: Import and visualize spatial data
+
+Since Feldaufnahmen_Fanel.gpkg is a vector dataset, you can import it using read_sf(). Explore this dataset in R to answer the following questions:
+
+What information does the dataset contain? What is the geometry type of the dataset (possible types are: Point, Lines and Polygons)? What are the data types of the other columns? What is the coordinate system of the dataset?
+
+```{r}
+library("readr")
+library("sf")
+library("terra")
+library("dplyr")
+library("lubridate")
+library("ggplot2")
+library("tmap")
+options("sf_max.plot" =1)
+
+wildschwein_BE <- read_delim("wildschwein_BE_2056.csv", ",") |>
+    st_as_sf(coords = c("E", "N"), crs = 2056, remove = FALSE)
+
+fanel <- st_read("Feldaufnahmen_Fanel.gpkg")
+
+plot(fanel)
+
+ggplot(fanel)+
+  geom_sf(aes(fill=Frucht))+
+  geom_sf(data=wildschwein_BE, alpha=.3)+
+  theme(legend.position = "none")+
+  coord_sf(datum=2056)
+```
+
+## Task 2: Annotate Trajectories from vector data
+
+We would like to know what crop was visited by which wild boar, and at what time. Since the crop data is most relevant in summer, filter your wildboar data to the months may to june first and save the output to a new variable. Overlay the filtered dataset with your fanel data to verify the spatial overlap.
+
+To sematically annotate each wildboar location with crop information, you can use a spatial join with the function st_join(). Do this and explore your annotated dataset.
+
+```{r}
+wildschwein_join <- st_join(wildschwein_BE,fanel,)
+
+ggplot()+
+ # geom_sf(aes(fill=Frucht))+
+  geom_sf(data=wildschwein_join, aes(colour=Frucht),alpha=.3)+
+  theme(legend.position = "none")+
+  coord_sf(datum=2056)
+```
+
+##  Task 5: Explore annotated trajectories
+Think of ways you could visually explore the spatio-temporal patterns of wild boar in relation to the crops. In our example below we visualize the percentage of samples in a given crop per hour.
+```{r}
+veg <- rast("vegetationshoehe_LFI.tif") #1nlyr (one layer)
+plot(veg)
+
+tm_shape(veg) +
+  tm_raster(style ="cont")+
+  tm_shape(wildschwein_join) + tm_dots()
+#tm_shape works better than gglpot with big data
+
+veg_extract <- extract(veg,wildschwein_join) #Daten rausnehmen und bereinigen
+
+wildschwein_join$veg <- veg_extract$vegetationshoehe_LFI
+
+
+```
+
